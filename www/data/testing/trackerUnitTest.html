@@ -1,0 +1,165 @@
+<!DOCTYPE HTML>
+<html>
+<body>
+    <h1>Detect Faces</h1>
+    <p><canvas id="canvas"></canvas></p>
+    <select id="select">
+            <option selected value="js_objectdetect">JS Object Detector</option>
+            <option value="clmGaze">Clm Gaze</option>
+            <option value="trackerjs">Tracker JS</option>
+            <option value="TinyYOLO">YOLO</option>
+    </select>
+    <form>
+        CSV Name: <input type="text" name="fname" id="fname"><br>
+    </form>
+    <form>
+        <input type="button" id="btn" value="START"/>
+    </form>
+
+    <script src="webgazer.js"></script>
+    <script src="face-api.js"></script>
+    <script src="commons.js"></script>
+    <script src="faceDetectionControls.js"></script>
+    <script type="text/javascript" src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/materialize.min.js"></script>
+    <script type="text/javascript">
+	window.onload = function() {
+		var canvas = document.getElementById('canvas');
+		var context = canvas.getContext('2d');
+		var detector;
+                var detectorType = 'js_objectdetect';
+                var ws = new WebSocket("ws://localhost:8080/websocket");
+                var fname;
+                var output;
+		
+		async function detectFaces(canvas, width, height, src) {
+			// Detect faces in the image:
+                        var coord;
+                        if(detectorType == 'trackerjs')
+                        {
+                            var workingImage = canvas.getContext('2d').getImageData(0,0,width,height);
+                            console.log(typeof workingImage);
+                            console.log(workingImage);
+                            coord = detector.detectFace(workingImage, width, height);
+                        }
+                        else if(detectorType == 'TinyYOLO')
+                        {
+                            var image = new Image(width, height);
+                            image.src = src;
+                            //var workingImage = canvas.getContext('2d').getImageData(0,0,width,height);
+                            var faceDetection = await YOLO(image);
+                            //console.log(faceDetection);
+                            coord = [faceDetection[0].box.topLeft.x,
+                                     faceDetection[0].box.topLeft.y,
+                                     faceDetection[0].box.width,
+                                     faceDetection[0].box.height];
+                            console.log(coord);
+                        }
+                        else
+                        {
+                            coord = detector.detectFace(canvas, width, height);
+                        }
+                        //console.log(coord);
+			
+                        context.beginPath();
+                        context.lineWidth = '' + coord[4] * .5;
+                        context.strokeStyle = 'rgba(0, 255, 255, 0.75)';
+                        context.rect(coord[0], coord[1], coord[2], coord[3]);
+                        context.stroke();
+                        return coord;
+		}
+		
+	        async function loadImage(src) {
+                        var image = document.createElement('img');
+			image = new Image();
+			image.src = src;
+			image.onload = async function() {
+				canvas.width = image.width;
+				canvas.height = image.height;
+				canvas.getContext('2d').drawImage(image, 0, 0, image.width, image.height);
+                                if(detectorType == 'js_objectdetect')
+                                {
+                                    detector = new webgazer.tracker.Js_objectdetectGaze(); //TrackingjsGaze();
+                                }
+                                else if(detectorType == 'trackerjs')
+                                {
+                                    detector = new webgazer.tracker.TrackingjsGaze();
+                                }
+				const coord = await detectFaces(canvas, image.width, image.height, src);
+                                //var coord = detector.detectFace(canvas, image.width, image.height);
+                                output = src + "," + coord[0].toString() + "," + coord[1].toString() +
+                                          "," + coord[2].toString() + "," + coord[3].toString() + "\n";
+                                console.log(coord);
+                                sendMsg({ msgID: "3",
+                                          fname: fname,
+                                          msg: output });
+			}
+			
+			image.src = src;
+		}
+
+                async function YOLO(image)
+                {
+                    await changeFaceDetector(SSD_MOBILENETV1);
+                    while (!isFaceDetectionModelLoaded()) {
+                        console.log("waiting...")
+                    }
+                    const options = getFaceDetectorOptions();
+                    const results = await faceapi.detectAllFaces(image, options);
+                    console.log(results);
+                    return results;
+                }
+		
+		function handleFileSelect(e) {
+	    	var file = e.target.files[0];
+			var reader = new FileReader();
+			
+			reader.onload = function(e) {
+				loadImage(e.target.result);
+			};
+			reader.readAsDataURL(file);
+		}
+		
+		function handleDetectorSelect(e) {
+			detectorType = e.target.value;
+                        console.log(detectorType)
+		}
+
+                function sendMsg(msg) {
+                    ws.send(JSON.stringify(msg));
+                }
+
+                ws.onmessage = function(e)
+                {
+                    obj = JSON.parse(e.data);
+                    window.fileList = eval(obj.fileList);
+                }
+                ws.onopen = function(e) 
+                {
+                    var send = { msgID: "1" };
+                    ws.send(JSON.stringify(send));
+                }
+
+		document.getElementById('select').addEventListener('change', handleDetectorSelect, false);
+                document.getElementById('btn').onclick = async function() {
+                    fname = document.getElementById("fname").value;
+                    if(fname == "")
+                    {
+                        fname = "./output.csv";
+                    }
+                    sendMsg({ msgID: "2",
+                              fname: fname });
+
+                    var len = window.fileList.length;
+                    for (var i = 0; i < len; i++)
+                    {
+                        var item = window.fileList[i];
+                        await loadImage(item);
+                    }
+                    console.log("done");
+                }
+	
+	}
+    </script>
+</body>
+</html>
