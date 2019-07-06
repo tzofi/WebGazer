@@ -51,11 +51,15 @@
                             //var workingImage = canvas.getContext('2d').getImageData(0,0,width,height);
                             var faceDetection = await YOLO(image);
                             //console.log(faceDetection);
-                            coord = [faceDetection[0].box.topLeft.x,
-                                     faceDetection[0].box.topLeft.y,
-                                     faceDetection[0].box.width,
-                                     faceDetection[0].box.height];
-                            console.log(coord);
+                            try {
+                                coord = [faceDetection[0].box.topLeft.x,
+                                         faceDetection[0].box.topLeft.y,
+                                         faceDetection[0].box.width,
+                                         faceDetection[0].box.height];
+                            }
+                            catch {
+                                coord = [0,0,0,0]
+                            }
                         }
                         else
                         {
@@ -190,8 +194,13 @@
                     {
                         var item = window.fileList[i];
                         try { 
-                            const test = await createImage(item);
-                            console.log(test);
+                            const coord = await createImage(item);
+                            output = item + "," + coord[0].toString() + "," + coord[1].toString() +
+                                      "," + coord[2].toString() + "," + coord[3].toString() + "\n";
+                            sendMsg({ msgID: "3",
+                                      fname: fname,
+                                      msg: output });
+                            console.log(coord);
                         }
                         catch {
                             console.log("There was an error");
