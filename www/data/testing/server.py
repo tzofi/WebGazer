@@ -34,9 +34,10 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
         if msg['msgID'] == '1':
             files = []
-            for f in os.listdir(os.getcwd()):
-                if f[-4:] == ".png":
-                    files.append(f)
+            directory = sys.argv[1]
+            for f in os.listdir(directory):
+                if f[-4:] in [".png", ".jpg"]:
+                    files.append(directory + f)
             
             files = sorted(files)
 
@@ -74,6 +75,8 @@ class Application(tornado.web.Application):
 def main():
     listen_address = ''
     listen_port = 8080
+
+    '''
     try:
         if len(sys.argv) == 2:
             listen_port = int(sys.argv[1])
@@ -83,6 +86,7 @@ def main():
         assert 0 <= listen_port <= 65535
     except (AssertionError, ValueError):
         raise ValueError('Port must be a number between 0 and 65535')
+    '''
 
     args = sys.argv
     args.append("--log_file_prefix=myapp.log")
