@@ -31,6 +31,8 @@
                 var ws = new WebSocket("ws://localhost:8080/websocket");
                 var fname;
                 var output;
+                var image = document.createElement('img');
+                //var image;
 		
 		async function detectFaces(canvas, width, height, src) {
 			// Detect faces in the image:
@@ -68,15 +70,38 @@
                         context.stroke();
                         return coord;
 		}
+
+                function createImage(src){
+                    return new Promise((resolve, reject) => {
+                        image = new Image();
+                        image.src = src;
+                        image.onload = () => {
+			    canvas.width = image.width;
+			    canvas.height = image.height;
+			    canvas.getContext('2d').drawImage(image, 0, 0, image.width, image.height);
+                            if(detectorType == 'js_objectdetect')
+                            {
+                                detector = new webgazer.tracker.Js_objectdetectGaze(); //TrackingjsGaze();
+                            }
+                            else if(detectorType == 'trackerjs')
+                            {
+                                detector = new webgazer.tracker.TrackingjsGaze();
+                            }
+                            var coord = detectFaces(canvas, image.width, image.height, src);
+                            resolve(coord);
+                        }
+                        image.onerror = reject;
+                    })
+                }
 		
-	        async function loadImage(src) {
-                        var image = document.createElement('img');
-			image = new Image();
-			image.src = src;
+	        function loadImage(src) {
+                        image = new Image();
+                        image.src = src;
 			image.onload = async function() {
-				canvas.width = image.width;
-				canvas.height = image.height;
+				//canvas.width = image.width;
+				//canvas.height = image.height;
 				canvas.getContext('2d').drawImage(image, 0, 0, image.width, image.height);
+                                
                                 if(detectorType == 'js_objectdetect')
                                 {
                                     detector = new webgazer.tracker.Js_objectdetectGaze(); //TrackingjsGaze();
@@ -93,14 +118,24 @@
                                 sendMsg({ msgID: "3",
                                           fname: fname,
                                           msg: output });
+                                //delete image;
+                                
 			}
+                        return new Promise(function(resolve, reject) {
+                                canvas.width = image.width;
+                                canvas.height = image.height;
+                                console.log(canvas);
+				const quote = detectFaces(canvas, image.width, image.height, src);
+
+                                resolve(quote);
+                            });
 			
-			image.src = src;
+			//image.src = src;
 		}
 
                 async function YOLO(image)
                 {
-                    await changeFaceDetector(SSD_MOBILENETV1);
+                    await changeFaceDetector(TINY_FACE_DETECTOR); //SSD_MOBILENETV1);
                     while (!isFaceDetectionModelLoaded()) {
                         console.log("waiting...")
                     }
@@ -154,7 +189,13 @@
                     for (var i = 0; i < len; i++)
                     {
                         var item = window.fileList[i];
-                        await loadImage(item);
+                        try { 
+                            const test = await createImage(item);
+                            console.log(test);
+                        }
+                        catch {
+                            console.log("There was an error");
+                        }
                     }
                     console.log("done");
                 }
