@@ -42,28 +42,49 @@
                         var workingImage = canvas.getContext('2d').getImageData(0,0,width,height);
                         console.log(typeof workingImage);
                         console.log(workingImage);
+                        var t0 = performance.now();
                         coord = detector.detectFace(workingImage, width, height);
+                        var t1 = performance.now();
+                        coord.push(t1-t0);
                     }
                     else if(detectorType == 'TinyYOLO')
                     {
                         var image = new Image(width, height);
                         image.src = src;
                         //var workingImage = canvas.getContext('2d').getImageData(0,0,width,height);
+                        var t0 = performance.now();
                         var faceDetection = await YOLO(image);
+                        var t1 = performance.now();
                         //console.log(faceDetection);
                         try {
+                            /*
+                            leftEye = faceDetection[0].landmarks.positions.slice(36,42);
+                            rightEye = faceDetection[0].landmarks.positions.slice(42,48);
+                            console.log(typeof leftEye)
+                            console.log(leftEye)
+                            console.log(rightEye)
+                            coord = [faceDetection[0].detection.box.topLeft.x,
+                                     faceDetection[0].detection.box.topLeft.y,
+                                     faceDetection[0].detection.box.width,
+                                     faceDetection[0].detection.box.height,
+                                     t1-t0];
+                            */
                             coord = [faceDetection[0].box.topLeft.x,
                                      faceDetection[0].box.topLeft.y,
                                      faceDetection[0].box.width,
-                                     faceDetection[0].box.height];
+                                     faceDetection[0].box.height,
+                                     t1-t0];
                         }
                         catch {
-                            coord = [0,0,0,0]
+                            coord = [0,0,0,0,0]
                         }
                     }
                     else
                     {
+                        var t0 = performance.now();
                         coord = detector.detectFace(canvas, width, height);
+                        var t1 = performance.now();
+                        coord.push(t1-t0);
                     }
                     //console.log(coord);
                     
@@ -101,12 +122,16 @@
                 async function YOLO(image)
                 {
                     await changeFaceDetector(TINY_FACE_DETECTOR); //SSD_MOBILENETV1);
-                    //while (!isFaceDetectionModelLoaded()) {
-                    //    console.log("waiting...")
-                    //}
+                    //await changeFaceDetector(SSD_MOBILENETV1);
+                    //await faceapi.loadFaceLandmarkModel('./');
+                    while (!isFaceDetectionModelLoaded()) {
+                        console.log("waiting...")
+                    }
                     var options = getFaceDetectorOptions();
-                    options._scoreThreshold = 0.05;
-                    options.scoreThreshold = 0.05;
+                    options._scoreThreshold = 0.25;
+                    options.scoreThreshold = 0.25;
+                    //const use_tiny = true;
+                    //var results = await faceapi.detectAllFaces(image, options).withFaceLandmarks();
                     var results = await faceapi.detectAllFaces(image, options);
                     return results;
                 }
@@ -174,10 +199,11 @@
                             var coord = await createImage(item);
                             if(coord === undefined || coord.length == 0)
                             {
-                                coord = [0,0,0,0];
+                                coord = [0,0,0,0,0];
                             }
                             output = item + "," + coord[0].toString() + "," + coord[1].toString() +
-                                      "," + coord[2].toString() + "," + coord[3].toString() + "\n";
+                                      "," + coord[2].toString() + "," + coord[3].toString() + "," +
+                                      coord[4].toString() + "\n";
                             sendMsg({ msgID: "3",
                                       fname: fname,
                                       msg: output });
