@@ -57,23 +57,37 @@
                         var t1 = performance.now();
                         //console.log(faceDetection);
                         try {
-                            /*
                             leftEye = faceDetection[0].landmarks.positions.slice(36,42);
                             rightEye = faceDetection[0].landmarks.positions.slice(42,48);
-                            console.log(typeof leftEye)
-                            console.log(leftEye)
-                            console.log(rightEye)
+			    leftEyeX = [leftEye[0]._x, leftEye[1]._x, leftEye[2]._x,
+			    		leftEye[3]._x, leftEye[4]._x];
+			    leftEyeY = [leftEye[0]._y, leftEye[1]._y, leftEye[2]._y,
+			    		leftEye[3]._y, leftEye[4]._y];
+			    rightEyeX = [rightEye[0]._x, rightEye[1]._x, rightEye[2]._x,
+			    		rightEye[3]._x, rightEye[4]._x];
+			    rightEyeY = [rightEye[0]._y, rightEye[1]._y, rightEye[2]._y,
+			    		rightEye[3]._y, rightEye[4]._y];
                             coord = [faceDetection[0].detection.box.topLeft.x,
                                      faceDetection[0].detection.box.topLeft.y,
                                      faceDetection[0].detection.box.width,
                                      faceDetection[0].detection.box.height,
+				     Math.min(...leftEyeX),
+				     Math.min(...leftEyeY),
+				     Math.max(...leftEyeX) - Math.min(...leftEyeX),
+				     Math.max(...leftEyeY) - Math.min(...leftEyeY),
+				     Math.min(...rightEyeX),
+				     Math.min(...rightEyeY),
+				     Math.max(...rightEyeX) - Math.min(...rightEyeX),
+				     Math.max(...rightEyeY) - Math.min(...rightEyeY),
                                      t1-t0];
-                            */
+			    //console.log(coord);
+                            /*
                             coord = [faceDetection[0].box.topLeft.x,
                                      faceDetection[0].box.topLeft.y,
                                      faceDetection[0].box.width,
                                      faceDetection[0].box.height,
                                      t1-t0];
+                            */
                         }
                         catch {
                             coord = [0,0,0,0,0]
@@ -92,6 +106,8 @@
                     context.lineWidth = '' + coord[4] * .5;
                     context.strokeStyle = 'rgba(0, 255, 255, 0.75)';
                     context.rect(coord[0], coord[1], coord[2], coord[3]);
+                    context.rect(coord[4], coord[5], coord[6], coord[7]);
+                    context.rect(coord[8], coord[9], coord[10], coord[11]);
                     context.stroke();
                     return coord;
 		}
@@ -121,9 +137,9 @@
 		
                 async function YOLO(image)
                 {
-                    await changeFaceDetector(TINY_FACE_DETECTOR); //SSD_MOBILENETV1);
-                    //await changeFaceDetector(SSD_MOBILENETV1);
-                    //await faceapi.loadFaceLandmarkModel('./');
+                    //await changeFaceDetector(TINY_FACE_DETECTOR); //SSD_MOBILENETV1);
+                    await changeFaceDetector(SSD_MOBILENETV1);
+                    await faceapi.loadFaceLandmarkModel('./');
                     while (!isFaceDetectionModelLoaded()) {
                         console.log("waiting...")
                     }
@@ -131,8 +147,8 @@
                     options._scoreThreshold = 0.25;
                     options.scoreThreshold = 0.25;
                     //const use_tiny = true;
-                    //var results = await faceapi.detectAllFaces(image, options).withFaceLandmarks();
-                    var results = await faceapi.detectAllFaces(image, options);
+                    var results = await faceapi.detectAllFaces(image, options).withFaceLandmarks();
+                    //var results = await faceapi.detectAllFaces(image, options);
                     return results;
                 }
 
