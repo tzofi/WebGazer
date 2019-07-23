@@ -34,8 +34,8 @@
 
     // View options
     webgazer.params.showVideo = true;
-    webgazer.params.showFaceOverlay = true;
-    webgazer.params.showFaceFeedbackBox = true;
+    webgazer.params.showFaceOverlay = false;
+    webgazer.params.showFaceFeedbackBox = false;
     webgazer.params.showGazeDot = false;
 
     //Params to clmtrackr and getUserMedia constraints
@@ -43,7 +43,7 @@
     webgazer.params.camConstraints = webgazer.params.camConstraints || { video: { width: { min: 320, ideal: 640, max: 1920 }, height: { min: 240, ideal: 480, max: 1080 }, facingMode: "user" } };
 
     webgazer.params.smoothEyeBB = webgazer.params.smoothEyeBB || false;
-    webgazer.params.blinkDetectionOn = webgazer.params.blinkDetectionOn || false;
+    webgazer.params.blinkDetectionOn = true; //webgazer.params.blinkDetectionOn || false;
 
     // Why is this not in webgazer.params ?
     var debugVideoLoc = '';
@@ -75,7 +75,8 @@
     var curTrackerMap = {
         'clmtrackr': function() { return new webgazer.tracker.ClmGaze(); },
         'trackingjs': function() { return new webgazer.tracker.TrackingjsGaze(); },
-        'js_objectdetect': function() { return new webgazer.tracker.Js_objectdetectGaze(); }
+        'js_objectdetect': function() { return new webgazer.tracker.Js_objectdetectGaze(); },
+        'tinyyolo': function() { return new webgazer.tracker.TinyYolo(); }
     };
     var regressionMap = {
         'ridge': function() { return new webgazer.reg.RidgeReg(); },
@@ -215,12 +216,16 @@
      * @param {Number} width - the width of canvas
      * @param {Number} height - the height of canvas
      */
-    function getPupilFeatures(canvas, width, height) {
+    async function getPupilFeatures(canvas, width, height) {
         if (!canvas) {
             return;
         }
         try {
-            return blinkDetector.detectBlink(curTracker.getEyePatches(canvas, width, height));
+            p = await curTracker.getEyePatches(canvas, width, height);
+            d = blinkDetector.detectBlink(p);
+            //d = blinkDetector.detectBlink(curTracker.getEyePatches(canvas, width, height));
+            //console.log(d);
+            return d;
         } catch(err) {
             console.log(err);
             return null;
@@ -250,9 +255,9 @@
      * @param {Number|undefined} regModelIndex - The prediction index we're looking for
      * @returns {*}
      */
-    function getPrediction(regModelIndex) {
+    async function getPrediction(regModelIndex) {
         var predictions = [];
-        latestEyeFeatures = getPupilFeatures(videoElementCanvas, videoElementCanvas.width, videoElementCanvas.height);
+        latestEyeFeatures = await getPupilFeatures(videoElementCanvas, videoElementCanvas.width, videoElementCanvas.height);
 
         if (regs.length === 0) {
             console.log('regression not set, call setRegression()');
@@ -261,6 +266,8 @@
         for (var reg in regs) {
             predictions.push(regs[reg].predict(latestEyeFeatures));
         }
+        //console.log(latestEyeFeatures);
+        //console.log(predictions);
         if (regModelIndex !== undefined) {
             return predictions[regModelIndex] === null ? null : {
                 'x' : predictions[regModelIndex].x,
@@ -283,7 +290,7 @@
     var smoothingVals = new webgazer.util.DataWindow(4);
     var k = 0;
 
-    function loop() {
+    async function loop() {
 
         if (!paused) {
 
@@ -293,7 +300,7 @@
             paintCurrentFrame(videoElementCanvas, videoElementCanvas.width, videoElementCanvas.height);
             
             // Get gaze prediction (ask clm to track; pass the data to the regressor; get back a prediction)
-            latestGazeData = getPrediction();
+            latestGazeData = await getPrediction();
             // Count time
             var elapsedTime = performance.now() - clockStart;
             // [20180611 James Tompkin]: What does this line do?
